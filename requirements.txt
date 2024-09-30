@@ -1,0 +1,9 @@
+transformers
+librosa
+huggingface_hub
+pydantic
+python-ffmpeg
+flask-socketio
+flask-cors
+flask
+python-jose
