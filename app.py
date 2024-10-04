@@ -23,12 +23,12 @@ import wave
 import websockets
 import subprocess
 
-# Initialize HuggingFace login
-lock_file = ".huggingface_lock"
-if not os.path.exists(lock_file):
-    login(HUGGINGFACE_TOKEN)
-    with open(lock_file, "w") as f:
-        f.write("locked")
+# # Initialize HuggingFace login
+# lock_file = ".huggingface_lock"
+# if not os.path.exists(lock_file):
+login(HUGGINGFACE_TOKEN)
+    # with open(lock_file, "w") as f:
+    #     f.write("locked")
 
 # Initialize ASR pipeline
 device = "cuda" if torch.cuda.is_available() else "cpu"
