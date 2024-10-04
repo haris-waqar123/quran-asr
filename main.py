@@ -4,7 +4,6 @@ from datetime import timedelta
 import random
 import string
 import numpy as np
-from pydantic import BaseModel
 import torch
 from transformers import pipeline
 from huggingface_hub import login
@@ -19,7 +18,6 @@ from utils.jwt_utils import create_access_token
 from utils.database import create_table  # Import the create_table function
 import json
 import threading
-import soundfile as sf
 import asyncio
 import wave
 import websockets
@@ -44,9 +42,9 @@ app.register_blueprint(audio_prediction_router)
 app.register_blueprint(lesson_data_router)
 
 
-def generate_random_name(length=10):
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
+# def generate_random_name(length=10):
+#     letters = string.ascii_lowercase
+#     return ''.join(random.choice(letters) for i in range(length))
 
 @app.route("/quran", methods=["POST"])
 def save_data_for_quran():
@@ -65,8 +63,8 @@ def save_data_for_quran():
     os.makedirs(ayah_dir, exist_ok=True)
 
     # Generate a random name for the audio file
-    random_name = generate_random_name()
-    file_path = os.path.join(ayah_dir, f'{random_name}.wav')
+    # random_name = generate_random_name()
+    file_path = os.path.join(ayah_dir, f'{surah_no + ayah_no}.wav')
 
     # Save the audio file
     audio_file.save(file_path)
