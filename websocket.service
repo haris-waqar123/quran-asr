@@ -1,0 +1,14 @@
+# /etc/systemd/system/websocket.service
+[Unit]
+Description=WebSocket server for myapp
+After=network.target
+
+[Service]
+User=administrator
+Group=www-data
+WorkingDirectory=/sdb-disk/9D-Muslim-Ai/asr_live
+ExecStart=/sdb-disk/9D-Muslim-Ai/asr_live/.venv/bin/python /sdb-disk/9D-Muslim-Ai/asr_live/websocket_server.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

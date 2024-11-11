@@ -1,0 +1,15 @@
+[Unit]
+Description=Gunicorn instance to serve myapp
+After=network.target
+
+[Service]
+User=administrator
+Group=www-data
+WorkingDirectory=/sdb-disk/9D-Muslim-Ai/asr_live
+ExecStart=/sdb-disk/9D-Muslim-Ai/asr_live/start_gunicorn.sh
+StandardOutput=append:/sdb-disk/9D-Muslim-Ai/asr_live/gunicorn.log
+StandardError=append:/sdb-disk/9D-Muslim-Ai/asr_live/gunicorn_error.log
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
