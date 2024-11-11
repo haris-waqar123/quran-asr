@@ -75,7 +75,7 @@ async def handle_client(websocket, path):
                 audio_data, sample_rate = read_wav_from_bytes(wav_data)
 
                 # Process the audio data with the ASR pipeline
-                response = asr_pipeline(audio_data)
+                response = asr_pipeline(message)
 
                 print(response)
 
@@ -96,8 +96,8 @@ async def handle_client(websocket, path):
         print(f"Client disconnected: {websocket.remote_address}")
 
 async def server():
-    server = await websockets.serve(handle_client, "172.16.10.104", 5000, max_size=2**24)
-    print("WebSocket server started on ws://172.16.10.104:5000")
+    server = await websockets.serve(handle_client, "69.197.145.4", 5000, max_size=2**24)
+    print("WebSocket server started on ws://69.197.145.4:5000")
     await server.wait_closed()
 
 if __name__ == "__main__":
