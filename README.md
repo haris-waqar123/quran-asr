@@ -237,7 +237,7 @@ After=network.target
 [Service]
 User=administrator
 Group=www-data
-WorkingDirectory=/sdb-disk/9D-Muslim-Ai/asr_live
+WorkingDirectory=/path/to/your/working/directory
 ExecStart=/path/to/your/start_gunicorn.sh
 StandardOutput=append:/path/to/your/gunicorn.log
 StandardError=append:/path/to/your/gunicorn_error.log
