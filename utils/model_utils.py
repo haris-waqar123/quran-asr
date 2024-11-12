@@ -1,10 +1,4 @@
-import os
-import torch
-from transformers import pipeline
-from config import HUGGINGFACE_TOKEN
-import logging
 import random
-import gc
 
 class ModelState:
     def __init__(self):
