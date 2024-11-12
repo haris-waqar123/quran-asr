@@ -153,13 +153,11 @@ And add the below code just below the include statements in http block:
         server <your-server-ipaddress>:8000;
 	    server <your-server-ipaddress>:8001;
 	    server <your-server-ipaddress>:8002;
-	    #server quranasr.9dmuslim.com:8000;
     }
 
     server {
         listen 80;
         server_name <your-server-ipaddress>;
-	    #server_name quranasr.9dmuslim.com;
 
     location / {
         proxy_pass http://backend;
@@ -249,5 +247,21 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
+**OR** 
+
+Just rename the gunicorn_new.service file to gunicorn.service and place it to the below path
+
+```sh
+/etc/systemd/system/<your-gunicorn.service-file>
+```
+
+After updating or placing the service files, reload the systemd daemon,enable the service, start the service, and check its status:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable gunicorn.service
+sudo systemctl start gunicorn.service
+sudo systemctl status gunicorn.service
+```
 
 ### **Note That For Multi-GPU websocket.service will remain same.**
