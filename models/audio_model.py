@@ -5,7 +5,10 @@ class LessonType(str, Enum):
     lesson1 = "lesson1"
     lesson2 = "lesson2"
     lesson3 = "lesson3"
+    lesson4 = "lesson4"
     lesson5 = "lesson5"
+    lesson6 = "lesson6"
+    lesson7 = "lesson7"
     lesson10 = "lesson10"
     lesson8_9 = "lesson8_9"
 
