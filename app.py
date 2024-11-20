@@ -14,9 +14,10 @@ from ai_models import ai_models
 from config import HUGGINGFACE_TOKEN
 from routes.audio_prediction import router as audio_prediction_router
 from routes.lesson_data import router as lesson_data_router
+from utils.database import insert_lesson_data
 from utils.extensions import verify_token
 from utils.file_utils import ensure_audio_directory
-from utils.database import create_table  # Import the create_table function
+# from utils.database import create_table  # Import the create_table function
 import flask_monitoringdashboard as dashboard
 import firebase_admin
 from firebase_admin import credentials
@@ -64,6 +65,9 @@ def generate_random_name(length=10):
 
 @app.route("/quran", methods=["POST"])
 def quran():
+
+    app.logger.info("Quran Api Called")
+
     auth_header = request.headers.get('Authorization')
     surah_no = request.form.get('surah_no')
     ayah_no = request.form.get('ayah_no')
@@ -136,7 +140,10 @@ def quran():
 
         # Save the resampled audio using soundfile
         sf.write(file_path, y, sr)
-        app.logger.info(user_id, f'Audio file saved and resampled to {file_path}')
+        
+        insert_lesson_data(surah_no, ayah_no, file_path, 0, False) 
+        
+        app.logger.info(f'User{user_id} Audio file saved and resampled to {file_path}')
 
     except Exception as e:
         app.logger.error(f'Error processing the audio file: {e}')
@@ -221,7 +228,7 @@ def delete_data():
 # Startup event
 ensure_audio_directory()
 # Ensure the table is created on startup
-create_table()
+# create_table()
 
 # Include routers
 app.register_blueprint(audio_prediction_router)

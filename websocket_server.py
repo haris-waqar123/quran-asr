@@ -1,8 +1,5 @@
 import asyncio
-import io
 import json
-import wave
-import numpy as np
 import torch
 import websockets
 from transformers import pipeline
@@ -17,31 +14,31 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 asr_pipeline = pipeline("automatic-speech-recognition", model="haseeb-9d/Quran-ASR-Full", device=device)
 
 
-def convert_pcm_to_wav(pcm_data, sample_rate=32000, num_channels=1, sample_width=2):
-    with io.BytesIO() as wav_file:
-        with wave.open(wav_file, 'wb') as wav_writer:
-            wav_writer.setnchannels(num_channels)
-            wav_writer.setsampwidth(sample_width)
-            wav_writer.setframerate(sample_rate)
-            wav_writer.writeframes(pcm_data)
-        wav_file.seek(0)
-        return wav_file.read()
+# def convert_pcm_to_wav(pcm_data, sample_rate=32000, num_channels=1, sample_width=2):
+#     with io.BytesIO() as wav_file:
+#         with wave.open(wav_file, 'wb') as wav_writer:
+#             wav_writer.setnchannels(num_channels)
+#             wav_writer.setsampwidth(sample_width)
+#             wav_writer.setframerate(sample_rate)
+#             wav_writer.writeframes(pcm_data)
+#         wav_file.seek(0)
+#         return wav_file.read()
     
 
-def read_wav_from_bytes(audio_bytes):
-    with wave.open(io.BytesIO(audio_bytes), 'rb') as wav_file:
-        sample_rate = wav_file.getframerate()
-        num_channels = wav_file.getnchannels()
-        sample_width = wav_file.getsampwidth()
-        num_frames = wav_file.getnframes()
+# def read_wav_from_bytes(audio_bytes):
+#     with wave.open(io.BytesIO(audio_bytes), 'rb') as wav_file:
+#         sample_rate = wav_file.getframerate()
+#         num_channels = wav_file.getnchannels()
+#         sample_width = wav_file.getsampwidth()
+#         num_frames = wav_file.getnframes()
 
-        audio_data = wav_file.readframes(num_frames)
-        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+#         audio_data = wav_file.readframes(num_frames)
+#         audio_array = np.frombuffer(audio_data, dtype=np.int16)
 
-        if num_channels == 2:
-            audio_array = audio_array.reshape(-1, 2).mean(axis=1)
+#         if num_channels == 2:
+#             audio_array = audio_array.reshape(-1, 2).mean(axis=1)
 
-        return audio_array, sample_rate
+#         return audio_array, sample_rate
     
 
 async def handle_client(websocket, path):
@@ -65,14 +62,14 @@ async def handle_client(websocket, path):
                 print(f"Received audio chunk of size: {len(message)} bytes")
 
                 # Convert raw PCM data to WAV format
-                wav_data = convert_pcm_to_wav(message)
+                # wav_data = convert_pcm_to_wav(message)
 
                 # audio_path = os.path.join(resampled_audio_folder, f"chunk_{chunk_counter}.wav")
                 # with open(audio_path, "wb") as f:
                 #     f.write(wav_data)
 
                 # Read WAV data into a NumPy array
-                audio_data, sample_rate = read_wav_from_bytes(wav_data)
+                # audio_data, sample_rate = read_wav_from_bytes(wav_data)
 
                 # Process the audio data with the ASR pipeline
                 response = asr_pipeline(message)

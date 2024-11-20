@@ -36,7 +36,7 @@ class ModelState:
 
         # Set the probabilities for the second and third predictions randomly within the range [0.30, 0.50]
         for pred in sorted_predictions[1:3]:  # Only adjust the next two predictions
-            adjusted_probability = random.uniform(0.30, 0.50)
+            adjusted_probability = random.uniform(0.30, 0.60)
             adjusted_predictions.append({"label": pred["label"], "probability": adjusted_probability})
 
         # Add remaining predictions with probabilities unchanged if any are left

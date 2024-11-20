@@ -9,7 +9,7 @@ from models.audio_model import LessonType
 from utils.extensions import verify_token
 from utils.model_utils import get_model_state
 from utils.file_utils import save_audio_file
-from utils.database import connect_db
+from utils.database import insert_lesson_data
 import librosa
 import io
 import logging
@@ -28,7 +28,9 @@ def predict_lesson_audio(model_type):
     auth_header = request.headers.get('Authorization')
 
     if not auth_header:
+        logging.info(auth_header)
         return jsonify({'label': 'Authorization header is missing',"probability": 0.0}), 401
+    
     token = auth_header.split(" ")[1]
 
     logging.error(f'Authorization header for Qaida: {token}')
@@ -94,16 +96,19 @@ def predict_lesson_audio(model_type):
         force_fully = False
 
         # Connect to the database and insert the data
-        conn = connect_db()
-        cursor = conn.cursor()
+        # conn = connect_db()
+        # cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO lessons_data (lesson_no, alphabet, file_name, probability, force_fully)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (model_type, audio_data.label, file_path, probability, force_fully))
+        # cursor.execute('''
+        #     INSERT INTO lessons_data (lesson_no, alphabet, file_name, probability, force_fully)
+        #     VALUES (?, ?, ?, ?, ?)
+        # ''', (model_type, audio_data.label, file_path, probability, force_fully))
 
-        conn.commit()
-        conn.close()
+        # conn.commit()
+        # conn.close()
+
+        #postgre SQL 
+        insert_lesson_data(model_type, audio_data.label, file_path, probability, force_fully) 
 
         logging.info(f"Predictions: {formatted_predictions}")
         return jsonify(formatted_predictions), 200
