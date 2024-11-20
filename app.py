@@ -96,7 +96,7 @@ def quran():
     }
 
     # Check for Authorization header
-    if not auth_header:
+    if not auth_header or auth_header == 'None':
         app.logger.warning('Authorization header is missing')
         return jsonify({'error': 'Authorization header is missing'}), 401
 
