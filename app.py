@@ -1,37 +1,39 @@
-# app.py
-
+import io
 import os
 import random
 import shutil
 import string
+from fastapi.responses import JSONResponse
 import librosa
 import logging
 from logging.handlers import RotatingFileHandler
 from huggingface_hub import login
-from flask_cors import CORS
-from flask import Flask, jsonify, request
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Header, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from ai_models import ai_models
+from utils.background_tasks import move_audio_files, quran_audio_file
 from config import HUGGINGFACE_TOKEN
 from routes.audio_prediction import router as audio_prediction_router
 from routes.lesson_data import router as lesson_data_router
 from utils.database import insert_lesson_data
 from utils.extensions import verify_token
-from utils.file_utils import ensure_audio_directory
-# from utils.database import create_table  # Import the create_table function
-import flask_monitoringdashboard as dashboard
+import soundfile as sf
 import firebase_admin
 from firebase_admin import credentials
-import soundfile as sf
 
+app = FastAPI()
 
-app = Flask(__name__)
-dashboard.bind(app)
-
-cred = credentials.Certificate('/sdb-disk/9D-Muslim-Ai/asr_live/firebase/al-quran-imai-firebase-adminsdk-bh3zo-9309f678af.json')
+cred = credentials.Certificate('firebase/al-quran-imai-firebase-adminsdk-bh3zo-9309f678af.json')
 
 firebase_admin.initialize_app(cred)
 
-CORS(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize HuggingFace login
 login(HUGGINGFACE_TOKEN)
@@ -46,16 +48,17 @@ file_handler.setFormatter(logging.Formatter(
 ))
 file_handler.setLevel(logging.INFO)
 
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.addHandler(file_handler)
 
-app.logger.info('Main App startup')
+logger.info('Main App startup')
 
 # Get the current working directory
 current_directory = os.getcwd()
 
 # Print the current working directory
-app.logger.info(f"Current Working Directory: {current_directory}")
+logger.info(f"Current Working Directory: {current_directory}")
 
 def generate_random_name(length=10):
     letters = string.ascii_lowercase
@@ -63,15 +66,15 @@ def generate_random_name(length=10):
 
 # Initialize models
 
-@app.route("/quran", methods=["POST"])
-def quran():
-
-    app.logger.info("Quran Api Called")
-
-    auth_header = request.headers.get('Authorization')
-    surah_no = request.form.get('surah_no')
-    ayah_no = request.form.get('ayah_no')
-    audio_file = request.files['audio_file']
+@app.post("/quran")
+async def quran(
+    surah_no: str = Form(...),
+    ayah_no: str = Form(...),
+    audio_file: UploadFile = File(...),
+    authorization: str = Header(None),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    logger.info("Quran Api Called")
 
     special_verses = {
         (2, 1),
@@ -96,14 +99,14 @@ def quran():
     }
 
     # Check for Authorization header
-    if not auth_header or auth_header == 'None':
-        app.logger.warning('Authorization header is missing')
-        return jsonify({'error': 'Authorization header is missing'}), 401
+    if not authorization:
+        logger.warning('Authorization header is missing')
+        raise HTTPException(status_code=401, detail='Authorization header is missing')
 
-    app.logger.info(f'Authorization header: {auth_header}')
+    logger.info(f'Authorization header: {authorization}')
 
     # Verify token
-    token = auth_header.split(" ")[1]
+    token = authorization.split(" ")[1]
     if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
         logging.info('Special token detected, bypassing token verification')
         user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
@@ -112,13 +115,13 @@ def quran():
         print(f"User Info {user_info}")
 
     if user_info is None:
-        app.logger.warning('Invalid token')
-        return jsonify({'error': 'Invalid token'}), 403
+        logger.warning('Invalid token')
+        raise HTTPException(status_code=403, detail='Invalid token')
 
     # Validate form data
     if not surah_no or not ayah_no or not audio_file:
-        app.logger.warning('Missing form data')
-        return jsonify({'error': 'Missing form data'}), 400
+        logger.warning('Missing form data')
+        raise HTTPException(status_code=400, detail='Missing form data')
 
     user_id = user_info.get('uid', 'unknown_user')
     # Create the directory structure for saving audio files
@@ -132,27 +135,13 @@ def quran():
     random_name = generate_random_name()
     file_path = os.path.join(ayah_dir, f'{random_name}.wav')
 
-    try:
-        # Load the audio file with librosa to resample at 32000 Hz
-        y, sr = librosa.load(audio_file)
-
-        app.logger.info(f"Quran API Audio Sampling rate is {sr}")
-
-        # Save the resampled audio using soundfile
-        sf.write(file_path, y, sr)
-        
-        insert_lesson_data(surah_no, ayah_no, file_path, 0, False) 
-        
-        app.logger.info(f'User{user_id} Audio file saved and resampled to {file_path}')
-
-    except Exception as e:
-        app.logger.error(f'Error processing the audio file: {e}')
-        return jsonify({'error': 'Failed to process the audio file'}), 500
+    # background_tasks.add_task(
+    quran_audio_file(file_path, audio_file, surah_no, ayah_no)
 
     try:
         # Perform ASR on the saved audio file
         transcript = ai_models["quran"](file_path)
-        app.logger.info(f'Transcription successful for {file_path}')
+        logger.info(f'Transcription successful for {file_path}')
 
         surah_no = int(surah_no)
         ayah_no = int(ayah_no)
@@ -164,35 +153,35 @@ def quran():
             classification_result = ai_models["lesson10"](file_path)
 
             classification_text = classification_result[0]['label']
-            app.logger.info(f'Classification successful for {file_path}: {classification_text} ')
+            logger.info(f'Classification successful for {file_path}: {classification_text} ')
 
-            return jsonify({
+            return {
                 "file_path": file_path,
                 "transcript": classification_text,
                 "classification": classification_result,
-            }), 200
+            }
 
-        return jsonify({
+        return {
             "file_path": file_path,
             "transcript": transcript['text'],
-        }), 200
+        }
 
     except Exception as e:
-        app.logger.error(f'Error during ASR processing: {e}')
-        return jsonify({'error': 'Failed to transcribe audio'}), 500
+        logger.error(f'Error during ASR processing: {e}')
+        raise HTTPException(status_code=500, detail='Failed to transcribe audio')
 
-@app.route("/delete_data", methods=["POST"])
-def delete_data():
-    app.logger.info("Request Received for Delete Data")
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
-        app.logger.warning('Authorization header is missing')
-        return jsonify({'error': 'Authorization header is missing'}), 401
+@app.post("/delete_data")
+async def delete_data(authorization: str = Header(None), background_tasks: BackgroundTasks = BackgroundTasks()):
+    logger.info("Request Received for Delete Data")
 
-    app.logger.info(f'Authorization header: {auth_header}')
+    if not authorization:
+        logger.warning('Authorization header is missing')
+        raise HTTPException(status_code=401, detail='Authorization header is missing')
+
+    logger.info(f'Authorization header: {authorization}')
 
     # Verify token
-    token = auth_header.split(" ")[1]
+    token = authorization.split(" ")[1]
     if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
         logging.info('Special token detected, bypassing token verification')
         user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
@@ -201,39 +190,27 @@ def delete_data():
         print(f"User Info {user_info}")
 
     if user_info is None:
-        app.logger.warning('Invalid token')
-        return jsonify({'error': 'Invalid token'}), 403
+        logger.warning('Invalid token')
+        raise HTTPException(status_code=403, detail='Invalid token')
 
-    saved_audio_files = '/sdb-disk/9D-Muslim-Ai/asr_live/saved_audio_files'
+    saved_audio_files = '/saved_audio_files'
 
     user_id = user_info.get('uid', 'unknown_user')
     if user_id:
         source_folder = os.path.join(saved_audio_files, user_id)
-        destination_folder = '/sdb-disk/9D-Muslim-Ai/asr_live/moved_audio_files'  # Define the new path
+        destination_folder = '/moved_audio_files'  # Define the new path
 
-        # Ensure the destination directory exists
-        if not os.path.exists(destination_folder):
-            os.makedirs(destination_folder)
+        # Add the background task to move the audio files
+        background_tasks.add_task(move_audio_files, source_folder, destination_folder)
 
-        # Check if the source folder exists
-        if os.path.exists(source_folder):
-            # Move the folder
-            shutil.move(source_folder, os.path.join(destination_folder, user_id))
-            return jsonify({"status": "Data Deleted Successfully", "status_code": 200})
-        else:
-            return jsonify({"status": "User folder not found OR Data Already Deleted", "status_code": 404})
+        return JSONResponse(content={"status": "Data Deletion Scheduled", "status_code": 200})
     else:
-        return jsonify({"status": "User ID not provided", "status_code": 400})
-
-# Startup event
-ensure_audio_directory()
-# Ensure the table is created on startup
-# create_table()
+        return JSONResponse(content={"status": "User ID not provided", "status_code": 400})
 
 # Include routers
-app.register_blueprint(audio_prediction_router)
-app.register_blueprint(lesson_data_router)
+app.include_router(audio_prediction_router)
+app.include_router(lesson_data_router)
 
 if __name__ == "__main__":
-    app.run()
-    # app.run(host='69.197.145.4', port=8000, debug=True, use_reloader=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

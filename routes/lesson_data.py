@@ -1,29 +1,22 @@
 import logging
-from flask import Blueprint, request, jsonify
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 from utils.database import insert_lesson_data
 from utils.extensions import verify_token
-import psycopg2
-from psycopg2 import sql
 
-router = Blueprint('lesson_data', __name__)
+router = APIRouter()
 
 class LessonData(BaseModel):
     lesson_no: int
     alphabet: str
     file_name: str
 
+@router.post("/add_lesson_data")
+async def add_lesson_data(data: LessonData, authorization: str = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail='Authorization header is missing')
 
-#postgre SQL
-
-@router.route("/add_lesson_data", methods=["POST"])
-def add_lesson_data():
-
-    auth_header = request.headers.get('Authorization')
-
-    if not auth_header:
-        return jsonify({'label': 'Authorization header is missing',"probability": 0.0}), 401
-    token = auth_header.split(" ")[1]
+    token = authorization.split(" ")[1]
 
     logging.error(f'Authorization header for Qaida: {token}')
 
@@ -35,28 +28,12 @@ def add_lesson_data():
 
     if user_info is None:
         logging.info(f"User {user_info}")
-        return jsonify({'label': 'Invalid token', "probability": 0.0}), 401
+        raise HTTPException(status_code=401, detail='Invalid token')
 
-    # Parse and validate the request data
-    data = LessonData(**request.get_json())
     lesson_no = data.lesson_no
     alphabet = data.alphabet
     file_name = data.file_name
 
-    # Connect to the database and insert the data
-    # conn = connect_db()
-    # cursor = conn.cursor()
+    insert_lesson_data(lesson_no, alphabet, file_name, 0, True)
 
-    # cursor.execute('''
-    #     INSERT INTO lessons_data (lesson_no, alphabet, file_name)
-    #     VALUES (?, ?, ?)
-    # ''', (lesson_no, alphabet, file_name))
-
-    # conn.commit()
-    # conn.close()
-
-
-
-    insert_lesson_data(lesson_no, alphabet, file_name, 0, True)    
-
-    return jsonify({"message": "Data saved successfully!"})
+    return {"message": "Data saved successfully!"}
