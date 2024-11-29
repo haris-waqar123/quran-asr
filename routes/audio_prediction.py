@@ -78,13 +78,8 @@ async def predict_lesson_audio(
         base_dir = f"saved_audio_files/{user_id}/{model_type}"
         save_dir = f"{base_dir}/{audio_data.label}" if audio_data.label else base_dir
         unique_name = f"{new_name}.wav"
-        background_tasks.add_task(save_audio_file, save_dir, unique_name, audio_bytes)
 
         logger.info(f"Path to audio {save_dir}, {unique_name}")
-
-        # if all(-0.001 <= amp <= 0.001 for amp in audio):
-        #     logger.warning({"label": "Audio is not recorded properly", "probability": "400"})
-        #     raise HTTPException(status_code=400, detail='Audio is not recorded properly')
 
         # Get the model from the models dictionary
         model = ai_models.get(model_type)
@@ -111,6 +106,7 @@ async def predict_lesson_audio(
 
         # Connect to the database and insert the data
         background_tasks.add_task(insert_lesson_data, model_type, audio_data.label, file_path, probability, force_fully)
+        background_tasks.add_task(save_audio_file, save_dir, unique_name, audio_bytes)
 
         logger.warning(f"Predictions: {formatted_predictions}")
         return formatted_predictions

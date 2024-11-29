@@ -146,9 +146,6 @@ async def quran(
         random_name = generate_random_name()
         file_path = os.path.join(ayah_dir, f'{random_name}.wav')
 
-        # Add the background task to save the audio file
-        background_tasks.add_task(quran_audio_file, file_path, audio_bytes, surah_no, ayah_no)
-
         # Perform ASR on the audio data
         transcript = ai_models["quran"](audio_bytes)
         logger.info(f'Transcription successful')
@@ -158,8 +155,6 @@ async def quran(
         surah_no = int(surah_no)
         ayah_no = int(ayah_no)
         is_special_verse = (surah_no, ayah_no) in special_verses
-
-        insert_lesson_data(surah_no, ayah_no, file_path, 0, False)
 
         # If the surah and ayah numbers are in the special verses list, call the classification pipeline
         if is_special_verse:
@@ -173,6 +168,9 @@ async def quran(
                 "transcript": classification_text,
                 "classification": classification_result,
             }, status_code=200)
+
+        background_tasks.add_task(quran_audio_file, file_path, audio_bytes, surah_no, ayah_no)
+        background_tasks.add_task(insert_lesson_data, surah_no, ayah_no, file_path, 0, False)
 
         return JSONResponse(content={
             "transcript": transcript['text'],
@@ -219,7 +217,7 @@ async def delete_data(authorization: str = Header(None), background_tasks: Backg
 
         # Add the background task to move the audio files
         # logger.info(f"Source folder {source_folder} ---------------- Destination Folder {destination_folder}")
-        move_audio_files(source_folder, destination_folder)
+        background_tasks.add_task(move_audio_files, source_folder, destination_folder)
         logger.info("Data Was moved Successfully")
 
         return JSONResponse(content={"status": "Data Deletion Scheduled", "status_code": 200})
@@ -231,6 +229,6 @@ app.include_router(audio_prediction_router)
 app.include_router(lesson_data_router)
 
 if __name__ == "__main__":
-    import uvicorn
+    # import uvicorn
     # uvicorn.run(app, host="0.0.0.0", port=8000)
     pass
