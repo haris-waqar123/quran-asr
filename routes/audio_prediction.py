@@ -1,3 +1,4 @@
+from logging.handlers import RotatingFileHandler
 import os
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Header, BackgroundTasks
 from pydantic import BaseModel
@@ -14,42 +15,60 @@ import logging
 
 router = APIRouter()
 
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.addHandler(file_handler)
+
+logger.info('Audio Prediction App startup')
+
 class AudioData(BaseModel):
     label: str = None
 
 @router.post("/qaida/{model_type}")
 async def predict_lesson_audio(
     model_type: str,
-    file: UploadFile = File(...),
+    audio_file: UploadFile = File(...),
     label: str = Form(None),
     new_name: str = Form(None),
     authorization: str = Header(None),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     # Verify API key
-    logging.info('Received prediction request')
+    logger.info('Received prediction request')
     state = get_model_state()
 
     if not authorization:
-        logging.info(authorization)
+        logger.info(authorization)
         raise HTTPException(status_code=401, detail='Authorization header is missing')
 
-    token = authorization.split(" ")[1]
+    try:
+        token = authorization.split("Bearer ")[1]
 
-    logging.error(f'Authorization header for Qaida: {token}')
+        logger.info(f'Authorization header for Qaida: {token}')
 
-    if token == API_KEY:
-        logging.info('Special token detected, bypassing token verification')
-        user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
-    else:
-        user_info = verify_token(token)
+        if token == API_KEY:
+            logger.info('Special token detected, bypassing token verification')
+            user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
+        else:
+            user_info = verify_token(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail='Failed to Authorize')
 
     if user_info is None:
-        logging.info(f"User {user_info}")
+        logger.error(f"Invalid token: User {user_info}")
         raise HTTPException(status_code=401, detail='Invalid token')
 
     audio_data = AudioData(label=label)
-    audio_bytes = await file.read()
+    audio_bytes = await audio_file.read()
     audio, sr = librosa.load(io.BytesIO(audio_bytes), sr=16000)
     audio = librosa.to_mono(audio)
 
@@ -61,15 +80,16 @@ async def predict_lesson_audio(
         unique_name = f"{new_name}.wav"
         background_tasks.add_task(save_audio_file, save_dir, unique_name, audio_bytes)
 
-        logging.info(f"Path to audio {save_dir}, {unique_name}")
+        logger.info(f"Path to audio {save_dir}, {unique_name}")
 
-        if all(-0.001 <= amp <= 0.001 for amp in audio):
-            logging.warning({"label": "Audio is not recorded properly", "probability": "400"})
-            raise HTTPException(status_code=400, detail='Audio is not recorded properly')
+        # if all(-0.001 <= amp <= 0.001 for amp in audio):
+        #     logger.warning({"label": "Audio is not recorded properly", "probability": "400"})
+        #     raise HTTPException(status_code=400, detail='Audio is not recorded properly')
 
         # Get the model from the models dictionary
         model = ai_models.get(model_type)
         if model is None:
+            logger.error('Model not found')
             raise HTTPException(status_code=400, detail='Model not found')
 
         predictions = model(audio)
@@ -90,9 +110,9 @@ async def predict_lesson_audio(
         force_fully = False
 
         # Connect to the database and insert the data
-        insert_lesson_data(model_type, audio_data.label, file_path, probability, force_fully)
+        background_tasks.add_task(insert_lesson_data, model_type, audio_data.label, file_path, probability, force_fully)
 
-        logging.info(f"Predictions: {formatted_predictions}")
+        logger.warning(f"Predictions: {formatted_predictions}")
         return formatted_predictions
     else:
         raise HTTPException(status_code=400, detail='Invalid model type')

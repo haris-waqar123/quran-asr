@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 
@@ -20,13 +21,13 @@ async def save_audio_file(save_dir, unique_name, audio_bytes, move=False, origin
 
     return file_path
 
-def quran_audio_file(file_path: str, audio_file, surah_no: int, ayah_no: int):
+async def quran_audio_file(file_path: str, audio_bytes, surah_no: int, ayah_no: int):
     try:
         # Load the audio file with librosa to resample at 32000 Hz
-        y, sr = librosa.load(audio_file.file)
+        audio, sr = librosa.load(io.BytesIO(audio_bytes), sr=32000)
 
         # Save the resampled audio using soundfile
-        sf.write(file_path, y, sr)
+        sf.write(file_path, audio, sr)
 
         # Insert lesson data into the database
         insert_lesson_data(surah_no, ayah_no, file_path, 0, False)

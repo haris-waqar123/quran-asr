@@ -64,8 +64,6 @@ def generate_random_name(length=10):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(length))
 
-# Initialize models
-
 @app.post("/quran")
 async def quran(
     surah_no: str = Form(...),
@@ -106,13 +104,16 @@ async def quran(
     logger.info(f'Authorization header: {authorization}')
 
     # Verify token
-    token = authorization.split(" ")[1]
-    if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
-        logging.info('Special token detected, bypassing token verification')
-        user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
-    else:
-        user_info = verify_token(token)
-        print(f"User Info {user_info}")
+    try:
+        token = authorization.split(" ")[1]
+        if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
+            logging.info('Special token detected, bypassing token verification')
+            user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
+        else:
+            user_info = verify_token(token)
+            print(f"User Info {user_info}")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Failed to Authorize")
 
     if user_info is None:
         logger.warning('Invalid token')
@@ -124,51 +125,63 @@ async def quran(
         raise HTTPException(status_code=400, detail='Missing form data')
 
     user_id = user_info.get('uid', 'unknown_user')
-    # Create the directory structure for saving audio files
-    base_dir = 'quran_audio'
-    user = os.path.join(base_dir, f"{user_id}")
-    surah_dir = os.path.join(user, f'surah_no_{surah_no}')
-    ayah_dir = os.path.join(surah_dir, f'ayah_no_{ayah_no}')
-    os.makedirs(ayah_dir, exist_ok=True)
-
-    # Generate a random name for the audio file
-    random_name = generate_random_name()
-    file_path = os.path.join(ayah_dir, f'{random_name}.wav')
-
-    # background_tasks.add_task(
-    quran_audio_file(file_path, audio_file, surah_no, ayah_no)
 
     try:
-        # Perform ASR on the saved audio file
-        transcript = ai_models["quran"](file_path)
-        logger.info(f'Transcription successful for {file_path}')
+        # Load the audio file with librosa to resample at 32000 Hz
+        audio_bytes = await audio_file.read()
+        audio, sr = librosa.load(io.BytesIO(audio_bytes), sr=32000)
+
+        logger.info(f'Audio sampling rate is {sr}')
+
+        # Generate a random name for the audio file
+        user_id = user_info.get('uid', 'unknown_user')
+        # Create the directory structure for saving audio files
+        base_dir = 'quran_audio_test'
+        user = os.path.join(base_dir, f"{user_id}")
+        surah_dir = os.path.join(user, f'surah_no_{surah_no}')
+        ayah_dir = os.path.join(surah_dir, f'ayah_no_{ayah_no}')
+        os.makedirs(ayah_dir, exist_ok=True)
+
+        # Generate a random name for the audio file
+        random_name = generate_random_name()
+        file_path = os.path.join(ayah_dir, f'{random_name}.wav')
+
+        # Add the background task to save the audio file
+        background_tasks.add_task(quran_audio_file, file_path, audio_bytes, surah_no, ayah_no)
+
+        # Perform ASR on the audio data
+        transcript = ai_models["quran"](audio_bytes)
+        logger.info(f'Transcription successful')
+
+        logger.warning(f"transcript {transcript}")
 
         surah_no = int(surah_no)
         ayah_no = int(ayah_no)
         is_special_verse = (surah_no, ayah_no) in special_verses
 
+        insert_lesson_data(surah_no, ayah_no, file_path, 0, False)
+
         # If the surah and ayah numbers are in the special verses list, call the classification pipeline
         if is_special_verse:
-            print(f"is Special Verse {is_special_verse}")
-            classification_result = ai_models["lesson10"](file_path)
+            logger.info(f"is Special Verse {is_special_verse}")
+            classification_result = ai_models["lesson10"](audio)
 
             classification_text = classification_result[0]['label']
-            logger.info(f'Classification successful for {file_path}: {classification_text} ')
+            logger.warning(f'Classification successful: {classification_text}')
 
-            return {
-                "file_path": file_path,
+            return JSONResponse(content={
                 "transcript": classification_text,
                 "classification": classification_result,
-            }
+            }, status_code=200)
 
-        return {
-            "file_path": file_path,
+        return JSONResponse(content={
             "transcript": transcript['text'],
-        }
+        }, status_code=200)
 
     except Exception as e:
         logger.error(f'Error during ASR processing: {e}')
         raise HTTPException(status_code=500, detail='Failed to transcribe audio')
+
 
 @app.post("/delete_data")
 async def delete_data(authorization: str = Header(None), background_tasks: BackgroundTasks = BackgroundTasks()):
@@ -181,27 +194,33 @@ async def delete_data(authorization: str = Header(None), background_tasks: Backg
     logger.info(f'Authorization header: {authorization}')
 
     # Verify token
-    token = authorization.split(" ")[1]
-    if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
-        logging.info('Special token detected, bypassing token verification')
-        user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
-    else:
-        user_info = verify_token(token)
-        print(f"User Info {user_info}")
+    try:
+        token = authorization.split(" ")[1]
+        if token == 's2yHZSwIfhm1jUo01We00c9APLAndXgX':
+            logging.info('Special token detected, bypassing token verification')
+            user_info = {'uid': 'bypass_user'}  # Assign a dummy user_info for bypass
+        else:
+            user_info = verify_token(token)
+            print(f"User Info {user_info}")
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=401, detail="Failed to Authorize")
 
     if user_info is None:
         logger.warning('Invalid token')
         raise HTTPException(status_code=403, detail='Invalid token')
 
-    saved_audio_files = '/saved_audio_files'
+    saved_audio_files = 'saved_audio_files'
 
     user_id = user_info.get('uid', 'unknown_user')
     if user_id:
         source_folder = os.path.join(saved_audio_files, user_id)
-        destination_folder = '/moved_audio_files'  # Define the new path
+        destination_folder = "moved_audio_files"  # Define the new path
 
         # Add the background task to move the audio files
-        background_tasks.add_task(move_audio_files, source_folder, destination_folder)
+        # logger.info(f"Source folder {source_folder} ---------------- Destination Folder {destination_folder}")
+        move_audio_files(source_folder, destination_folder)
+        logger.info("Data Was moved Successfully")
 
         return JSONResponse(content={"status": "Data Deletion Scheduled", "status_code": 200})
     else:
@@ -213,4 +232,5 @@ app.include_router(lesson_data_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # uvicorn.run(app, host="0.0.0.0", port=8000)
+    pass

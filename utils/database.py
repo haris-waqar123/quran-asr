@@ -23,7 +23,7 @@ import psycopg2
 #     conn.close()
 
 
-def insert_lesson_data(lesson_no, alphabet, file_name, probability, force_fully):
+async def insert_lesson_data(lesson_no, alphabet, file_name, probability, force_fully):
     conn = None
     try:
         conn = psycopg2.connect(
