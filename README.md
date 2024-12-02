@@ -55,6 +55,7 @@ If gunicorn is not found, you may need to install it in your virtual environment
 ```sh
 source /sdb-disk/9D-Muslim-Ai/Production/Production/.venv/bin/activate
 pip install gunicorn
+pip install uvicorn
 ```
 
 ### 3. Update the gunicorn.service File
@@ -72,7 +73,7 @@ Description=Gunicorn instance to serve myapp
 After=network.target
 
 [Service]
-ExecStart=/path/to/your/gunicorn -w 4 -b your_ip_address:8000 app:app
+ExecStart=/path/to/your/gunicorn app:app -k uvicorn.workers.UvicornWorker -b <your_ip_address>:8000 -w 3
 WorkingDirectory=/path/to/your/working_directory
 Restart=always
 User=administrator
@@ -206,6 +207,7 @@ If gunicorn is not found, you may need to install it in your virtual environment
 ```sh
 source /sdb-disk/9D-Muslim-Ai/Production/Production/.venv/bin/activate
 pip install gunicorn
+pip install uvicorn
 ```
 
 ### 2. Update the start_gunicorn.sh file
@@ -215,10 +217,12 @@ First edit the start_gunicorn.sh file by adding your own ip address and path to 
 ```sh
 #!/bin/bash
 
-CUDA_VISIBLE_DEVICES=0 /path/to/your/gunicorn -w 4 -b <your-server-ipaddress>:8000 app:app &
-CUDA_VISIBLE_DEVICES=1 /path/to/your/gunicorn -w 4 -b <your-server-ipaddress>:8001 app:app &
-CUDA_VISIBLE_DEVICES=2 /path/to/your/gunicorn -w 4 -b <your-server-ipaddress>:8002 app:app
+CUDA_VISIBLE_DEVICES=0 path/to/your//gunicorn app:app -k uvicorn.workers.UvicornWorker -b <your_ip_address>:8000 -w 3 &
+CUDA_VISIBLE_DEVICES=1 path/to/your//gunicorn app:app -k uvicorn.workers.UvicornWorker -b <your_ip_address>:8001 -w 3 &
+CUDA_VISIBLE_DEVICES=2 path/to/your//gunicorn app:app -k uvicorn.workers.UvicornWorker -b <your_ip_address>:8002 -w 3
 ```
+
+You can update 
 
 ### 3. Update the gunicorn.service File
 

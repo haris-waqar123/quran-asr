@@ -1,0 +1,11 @@
+# Ignore all log files
+*.log
+
+# Ignore a specific directory and its contents
+logs/
+moved_audio_files/
+qaida_saved_audio/
+quran_saved_audio/
+firebase/
+.vscode/
+.venv/
