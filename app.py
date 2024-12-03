@@ -161,4 +161,6 @@ app.include_router(audio_prediction_router)
 app.include_router(lesson_data_router)
 
 if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
     pass
