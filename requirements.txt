@@ -20,6 +20,10 @@ ecdsa==0.19.0
 fastapi==0.115.5
 filelock==3.16.1
 firebase-admin==6.5.0
+Flask==3.0.3
+Flask-Cors==5.0.0
+Flask-MonitoringDashboard==3.3.2
+Flask-SocketIO==5.4.1
 fsspec==2024.9.0
 google-api-core==2.20.0
 google-api-python-client==2.148.0
@@ -103,9 +107,6 @@ starlette==0.41.3
 sympy==1.12
 threadpoolctl==3.5.0
 tokenizers==0.20.0
-torch==2.4.1+cu124
-torchaudio==2.4.1+cu124
-torchvision==0.19.1+cu124
 tqdm==4.66.5
 transformers==4.45.1
 triton==3.0.0
