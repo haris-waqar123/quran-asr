@@ -9,6 +9,8 @@ import numpy as np
 import websockets
 from huggingface_hub import login
 from utils.ai_models import ai_models
+from datetime import datetime
+import pytz
 
 login("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")
 
@@ -16,12 +18,18 @@ login("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")
 if not os.path.exists('logs'):
     os.mkdir('logs')
 
+# Define a custom formatter that includes Pakistan Standard Time
+class PKTFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.fromtimestamp(record.created, pytz.timezone('Asia/Karachi'))
+        return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+# Create a RotatingFileHandler
 file_handler = RotatingFileHandler('logs/websocket_logs.log', maxBytes=10240)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
+file_handler.setFormatter(PKTFormatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
 file_handler.setLevel(logging.INFO)
 
+# Configure the root logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.addHandler(file_handler)

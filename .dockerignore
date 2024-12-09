@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+env
+venv
+.venv
+.git
+.gitignore
+.DS_Store
+firebase
+logs
+moved_audio_files
+qaida_saved_audio
+quran_saved_audio
