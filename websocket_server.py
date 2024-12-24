@@ -73,7 +73,7 @@ async def handle_client(websocket, path):
 
     try:
         async for message in websocket:
-            logger.info(f"Received message from {websocket.remote_address}: {message}")
+            logger.info(f"Received message from {websocket.remote_address}")
 
             if isinstance(message, bytes):
                 logger.info(f"Received audio chunk of size: {len(message)} bytes")
