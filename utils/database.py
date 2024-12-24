@@ -1,9 +1,11 @@
+from datetime import datetime
 from utils.app_logger import logger
 import time
 import psycopg2
 
 async def insert_lesson_data(lesson_no, alphabet, file_name, probability, force_fully):
     conn = None
+    timestamp = datetime.now()
     try:
         conn = psycopg2.connect(
             dbname='lessons_database',
@@ -13,10 +15,10 @@ async def insert_lesson_data(lesson_no, alphabet, file_name, probability, force_
         )
         cursor = conn.cursor()
         insert_query = """
-        INSERT INTO lessons_data (lesson_no, alphabet, file_name, probability, force_fully)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO lessons_data (lesson_no, alphabet, file_name, probability, force_fully, timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(insert_query, (lesson_no, alphabet, file_name, probability, force_fully))
+        cursor.execute(insert_query, (lesson_no, alphabet, file_name, probability, force_fully, timestamp))
         conn.commit()
         logger.info("Data inserted successfully.")
     except psycopg2.OperationalError as e:
